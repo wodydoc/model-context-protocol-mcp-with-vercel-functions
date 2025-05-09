@@ -131,75 +131,53 @@ const handler = createMcpHandler((server) => {
       quoteId: z.string(),
     },
     async ({ quoteId }) => {
-      console.log(`[MCP] applySurfaceEstimates → quoteId=${quoteId}`);
+      console.log(`[MCP] ⏳ applySurfaceEstimates → quoteId=${quoteId}`);
 
-      const { data, error } = await supabase
-        .from("quotes")
-        .select("surface, height")
-        .eq("id", quoteId)
-        .single();
+      // Send a fast response first to avoid 60s timeout
+      setTimeout(async () => {
+        try {
+          const { data, error } = await supabase
+            .from("quotes")
+            .select("surface, height")
+            .eq("id", quoteId)
+            .single();
 
-      if (error || !data) {
-        console.error("[MCP] ❌ Fetch error", error);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `❌ Failed to fetch quote: ${error?.message}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+          if (error || !data) {
+            console.error(`[MCP] ❌ Failed to fetch quote: ${error?.message}`);
+            return;
+          }
 
-      const S = data.surface ?? 75;
-      const H = data.height ?? 2.6;
-      const M2 = S * H;
-      const P2 = S;
-      const M1 = M2 * 0.2;
-      const P1 = P2 * 0.2;
+          const S = data.surface ?? 75;
+          const H = data.height ?? 2.6;
+          const M2 = S * H;
+          const P2 = S;
+          const M1 = M2 * 0.2;
+          const P1 = P2 * 0.2;
 
-      console.log(`[MCP] Computed: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`);
+          console.log(`[MCP] Computed: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`);
 
-      try {
-        const result = await withTimeout(
-          (async () =>
-            await supabase
-              .from("quotes")
-              .update({ M1, M2, P1, P2 })
-              .eq("id", quoteId)
-              .select()
-              .throwOnError())(),
-          10000
-        );
+          const result = await supabase
+            .from("quotes")
+            .update({ M1, M2, P1, P2 })
+            .eq("id", quoteId)
+            .select()
+            .throwOnError();
 
-        console.log("[MCP] ✅ Supabase update result:", result);
+          console.log(`[MCP] ✅ Surface formulas applied successfully`, result);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Unknown failure";
+          console.error(`[MCP] ❌ Exception in surface update: ${msg}`);
+        }
+      }, 50);
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: `✅ Surface formulas applied (S=${S}, H=${H}) → M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`,
-            },
-          ],
-        };
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Unknown timeout or update error";
-
-        console.error("[MCP] ❌ Update failure", err);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `❌ Supabase update failed: ${message}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: `🧠 Surface estimation launched for quote ${quoteId}. Logs will show results.`,
+          },
+        ],
+      };
     }
   );
 });
