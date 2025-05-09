@@ -3,7 +3,7 @@ import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
 
-// 👆 Add this just above createMcpHandler
+// 👆 Quote item typing
 type QuoteItem = {
   type: string;
   price: number;
@@ -16,7 +16,7 @@ const handler = createMcpHandler((server) => {
     content: [{ type: "text", text: `Tool echo: ${message}` }],
   }));
 
-  // 💸 updateVAT Tool — live Supabase update
+  // 💸 updateVAT Tool
   server.tool(
     "updateVAT",
     {
@@ -30,7 +30,6 @@ const handler = createMcpHandler((server) => {
         .eq("id", quoteId);
 
       if (error) {
-        console.error(`[MCP] Failed VAT update:`, error.message);
         return {
           content: [
             { type: "text", text: `❌ Failed to update VAT: ${error.message}` },
@@ -52,7 +51,7 @@ const handler = createMcpHandler((server) => {
     }
   );
 
-  // 🪚 splitPoseItems Tool — real logic
+  // 🪚 splitPoseItems Tool
   server.tool(
     "splitPoseItems",
     {
@@ -66,7 +65,6 @@ const handler = createMcpHandler((server) => {
         .single();
 
       if (fetchError || !data) {
-        console.error("[MCP] Fetch error:", fetchError?.message);
         return {
           content: [
             {
@@ -94,7 +92,6 @@ const handler = createMcpHandler((server) => {
         .eq("id", quoteId);
 
       if (updateError) {
-        console.error("[MCP] Update error:", updateError.message);
         return {
           content: [
             {
@@ -111,6 +108,67 @@ const handler = createMcpHandler((server) => {
           {
             type: "text",
             text: `✅ Successfully split fourniture_pose items for quote ${quoteId}`,
+          },
+        ],
+      };
+    }
+  );
+
+  // 📐 applySurfaceEstimates Tool
+  server.tool(
+    "applySurfaceEstimates",
+    {
+      quoteId: z.string(),
+    },
+    async ({ quoteId }) => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("surface, height")
+        .eq("id", quoteId)
+        .single();
+
+      if (error || !data) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Failed to fetch quote: ${error?.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const S = data.surface ?? 75;
+      const H = data.height ?? 2.6;
+
+      const M2 = S * H;
+      const P2 = S;
+      const M1 = M2 * 0.2;
+      const P1 = P2 * 0.2;
+
+      const { error: updateError } = await supabase
+        .from("quotes")
+        .update({ M1, M2, P1, P2 })
+        .eq("id", quoteId);
+
+      if (updateError) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Failed to apply surface formulas: ${updateError.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Surface formulas applied (S=${S}, H=${H}) → M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`,
           },
         ],
       };
