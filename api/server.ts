@@ -114,13 +114,15 @@ const handler = createMcpHandler((server) => {
     }
   );
 
-  // 📐 applySurfaceEstimates Tool
+  // 📐 applySurfaceEstimates Tool — with live logs
   server.tool(
     "applySurfaceEstimates",
     {
       quoteId: z.string(),
     },
     async ({ quoteId }) => {
+      console.log(`[MCP] applySurfaceEstimates: start — quoteId=${quoteId}`);
+
       const { data, error } = await supabase
         .from("quotes")
         .select("surface, height")
@@ -128,6 +130,7 @@ const handler = createMcpHandler((server) => {
         .single();
 
       if (error || !data) {
+        console.error("[MCP] ❌ Supabase fetch error:", error?.message);
         return {
           content: [
             {
@@ -139,6 +142,10 @@ const handler = createMcpHandler((server) => {
         };
       }
 
+      console.log(
+        `[MCP] ↳ Fetched surface=${data.surface}, height=${data.height}`
+      );
+
       const S = data.surface ?? 75;
       const H = data.height ?? 2.6;
 
@@ -147,12 +154,17 @@ const handler = createMcpHandler((server) => {
       const M1 = M2 * 0.2;
       const P1 = P2 * 0.2;
 
+      console.log(
+        `[MCP] Calculated values: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`
+      );
+
       const { error: updateError } = await supabase
         .from("quotes")
         .update({ M1, M2, P1, P2 })
         .eq("id", quoteId);
 
       if (updateError) {
+        console.error("[MCP] ❌ Supabase update error:", updateError.message);
         return {
           content: [
             {
@@ -163,6 +175,8 @@ const handler = createMcpHandler((server) => {
           isError: true,
         };
       }
+
+      console.log(`[MCP] ✅ Surface formula update succeeded for ${quoteId}`);
 
       return {
         content: [
