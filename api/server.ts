@@ -131,9 +131,9 @@ const handler = createMcpHandler((server) => {
       quoteId: z.string(),
     },
     async ({ quoteId }) => {
-      console.log(`[MCP] ⏳ applySurfaceEstimates → quoteId=${quoteId}`);
+      console.log(`[MCP] applySurfaceEstimates → quoteId=${quoteId}`);
 
-      // Send a fast response first to avoid 60s timeout
+      // Immediately respond to avoid timeout
       setTimeout(async () => {
         try {
           const { data, error } = await supabase
@@ -143,7 +143,7 @@ const handler = createMcpHandler((server) => {
             .single();
 
           if (error || !data) {
-            console.error(`[MCP] ❌ Failed to fetch quote: ${error?.message}`);
+            console.error(`[MCP] ❌ Fetch error: ${error?.message}`);
             return;
           }
 
@@ -154,27 +154,26 @@ const handler = createMcpHandler((server) => {
           const M1 = M2 * 0.2;
           const P1 = P2 * 0.2;
 
-          console.log(`[MCP] Computed: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`);
-
-          const result = await supabase
+          await supabase
             .from("quotes")
             .update({ M1, M2, P1, P2 })
             .eq("id", quoteId)
             .select()
             .throwOnError();
 
-          console.log(`[MCP] ✅ Surface formulas applied successfully`, result);
+          console.log(`[MCP] ✅ Surface formulas applied (S=${S}, H=${H})`);
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : "Unknown failure";
-          console.error(`[MCP] ❌ Exception in surface update: ${msg}`);
+          const message = err instanceof Error ? err.message : "Unknown error";
+          console.error(`[MCP] ❌ Async update failed: ${message}`);
         }
-      }, 50);
+      }, 100);
 
+      // ✅ THIS is the correct return shape
       return {
         content: [
           {
             type: "text",
-            text: `🧠 Surface estimation launched for quote ${quoteId}. Logs will show results.`,
+            text: `🧠 Surface estimate launched. Will update quote ${quoteId} shortly.`,
           },
         ],
       };
