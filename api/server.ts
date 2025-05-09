@@ -133,8 +133,8 @@ const handler = createMcpHandler((server) => {
     async ({ quoteId }) => {
       console.log(`[MCP] applySurfaceEstimates → quoteId=${quoteId}`);
 
-      // Immediately respond to avoid timeout
-      setTimeout(async () => {
+      // Fire-and-forget async logic
+      void (async () => {
         try {
           const { data, error } = await supabase
             .from("quotes")
@@ -166,9 +166,9 @@ const handler = createMcpHandler((server) => {
           const message = err instanceof Error ? err.message : "Unknown error";
           console.error(`[MCP] ❌ Async update failed: ${message}`);
         }
-      }, 100);
+      })();
 
-      // ✅ THIS is the correct return shape
+      // 🧠 This resolves immediately!
       return {
         content: [
           {
