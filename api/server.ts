@@ -176,6 +176,7 @@ const handler = createMcpHandler((server) => {
             text: `🧠 Surface estimate launched. Will update quote ${quoteId} shortly.`,
           },
         ],
+        isError: false,
       };
     }
   );
