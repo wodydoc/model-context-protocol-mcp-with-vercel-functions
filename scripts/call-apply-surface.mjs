@@ -11,7 +11,7 @@ if (!origin || !quoteId) {
 }
 
 async function main() {
-  const transport = new SSEClientTransport(new URL(`${origin}/api/server`)); // ✅ 
+  const transport = new SSEClientTransport(new URL(`${origin}/sse`)); // ✅ 
 
   const client = new Client(
     { name: "test-runner", version: "1.0.0" },
