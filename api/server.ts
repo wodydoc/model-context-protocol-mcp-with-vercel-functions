@@ -10,6 +10,16 @@ type QuoteItem = {
   [key: string]: any;
 };
 
+// ⏱ Timeout wrapper
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("Operation timed out")), ms)
+    ),
+  ]);
+}
+
 const handler = createMcpHandler((server) => {
   // 🔁 Echo Tool
   server.tool("echo", { message: z.string() }, async ({ message }) => ({
@@ -114,16 +124,15 @@ const handler = createMcpHandler((server) => {
     }
   );
 
-  // 📐 applySurfaceEstimates Tool — with verbose debug logs
+  // 📐 applySurfaceEstimates Tool — timeout-safe, log-rich, type-safe
+  // 📐 applySurfaceEstimates Tool — correct, safe, TS-clean
   server.tool(
     "applySurfaceEstimates",
     {
       quoteId: z.string(),
     },
     async ({ quoteId }) => {
-      console.log(
-        `[MCP] applySurfaceEstimates → called with quoteId=${quoteId}`
-      );
+      console.log(`[MCP] applySurfaceEstimates → quoteId=${quoteId}`);
 
       const { data, error } = await supabase
         .from("quotes")
@@ -151,28 +160,51 @@ const handler = createMcpHandler((server) => {
       const M1 = M2 * 0.2;
       const P1 = P2 * 0.2;
 
-      console.log(`[MCP] Surface values: S=${S}, H=${H}`);
       console.log(`[MCP] Computed: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`);
 
-      const { error: updateError } = await supabase
-        .from("quotes")
-        .update({ M1, M2, P1, P2 })
-        .eq("id", quoteId);
+      try {
+        const updateResult = await withTimeout(
+          supabase
+            .from("quotes")
+            .update({ M1, M2, P1, P2 })
+            .eq("id", quoteId)
+            .throwOnError() as unknown as Promise<{
+            error: null | Error;
+            data: unknown;
+          }>,
+          8000
+        );
 
-      if (updateError) {
-        console.error("[MCP] ❌ Update error", updateError);
+        if (updateResult.error) {
+          console.error("[MCP] ❌ Update error", updateResult.error);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `❌ Failed to apply surface formulas: ${updateResult.error.message}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        console.log("[MCP] ✅ Supabase update completed");
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unknown timeout or update error";
+        console.error("[MCP] ❌ Update failure", err);
         return {
           content: [
             {
               type: "text",
-              text: `❌ Failed to apply surface formulas: ${updateError.message}`,
+              text: `❌ Supabase update failed: ${message}`,
             },
           ],
           isError: true,
         };
       }
-
-      console.log("[MCP] ✅ Successfully updated quote with surface formulas");
 
       return {
         content: [
