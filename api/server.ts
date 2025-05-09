@@ -133,51 +133,56 @@ const handler = createMcpHandler((server) => {
     async ({ quoteId }) => {
       console.log(`[MCP] applySurfaceEstimates → quoteId=${quoteId}`);
 
-      // Fire-and-forget async logic
-      void (async () => {
-        try {
-          const { data, error } = await supabase
-            .from("quotes")
-            .select("surface, height")
-            .eq("id", quoteId)
-            .single();
+      try {
+        const { data, error } = await supabase
+          .from("quotes")
+          .select("surface, height")
+          .eq("id", quoteId)
+          .single();
 
-          if (error || !data) {
-            console.error(`[MCP] ❌ Fetch error: ${error?.message}`);
-            return;
-          }
-
-          const S = data.surface ?? 75;
-          const H = data.height ?? 2.6;
-          const M2 = S * H;
-          const P2 = S;
-          const M1 = M2 * 0.2;
-          const P1 = P2 * 0.2;
-
-          await supabase
-            .from("quotes")
-            .update({ M1, M2, P1, P2 })
-            .eq("id", quoteId)
-            .select()
-            .throwOnError();
-
-          console.log(`[MCP] ✅ Surface formulas applied (S=${S}, H=${H})`);
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : "Unknown error";
-          console.error(`[MCP] ❌ Async update failed: ${message}`);
+        if (error || !data) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `❌ Fetch error: ${error?.message}`,
+              },
+            ],
+            isError: true,
+          };
         }
-      })();
 
-      // 🧠 This resolves immediately!
-      return {
-        content: [
-          {
-            type: "text",
-            text: `🧠 Surface estimate launched. Will update quote ${quoteId} shortly.`,
-          },
-        ],
-        isError: false,
-      };
+        const S = data.surface ?? 75;
+        const H = data.height ?? 2.6;
+        const M2 = S * H;
+        const P2 = S;
+        const M1 = M2 * 0.2;
+        const P1 = P2 * 0.2;
+
+        await supabase
+          .from("quotes")
+          .update({ M1, M2, P1, P2 })
+          .eq("id", quoteId)
+          .select()
+          .throwOnError();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Surface formulas applied to quote ${quoteId} (S=${S}, H=${H})`,
+            },
+          ],
+        };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return {
+          content: [
+            { type: "text", text: `❌ Async update failed: ${message}` },
+          ],
+          isError: true,
+        };
+      }
     }
   );
 });
