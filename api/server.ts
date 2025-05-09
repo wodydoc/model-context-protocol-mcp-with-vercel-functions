@@ -114,14 +114,16 @@ const handler = createMcpHandler((server) => {
     }
   );
 
-  // 📐 applySurfaceEstimates Tool — with live logs
+  // 📐 applySurfaceEstimates Tool — with verbose debug logs
   server.tool(
     "applySurfaceEstimates",
     {
       quoteId: z.string(),
     },
     async ({ quoteId }) => {
-      console.log(`[MCP] applySurfaceEstimates: start — quoteId=${quoteId}`);
+      console.log(
+        `[MCP] applySurfaceEstimates → called with quoteId=${quoteId}`
+      );
 
       const { data, error } = await supabase
         .from("quotes")
@@ -130,7 +132,7 @@ const handler = createMcpHandler((server) => {
         .single();
 
       if (error || !data) {
-        console.error("[MCP] ❌ Supabase fetch error:", error?.message);
+        console.error("[MCP] ❌ Fetch error", error);
         return {
           content: [
             {
@@ -142,21 +144,15 @@ const handler = createMcpHandler((server) => {
         };
       }
 
-      console.log(
-        `[MCP] ↳ Fetched surface=${data.surface}, height=${data.height}`
-      );
-
       const S = data.surface ?? 75;
       const H = data.height ?? 2.6;
-
       const M2 = S * H;
       const P2 = S;
       const M1 = M2 * 0.2;
       const P1 = P2 * 0.2;
 
-      console.log(
-        `[MCP] Calculated values: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`
-      );
+      console.log(`[MCP] Surface values: S=${S}, H=${H}`);
+      console.log(`[MCP] Computed: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`);
 
       const { error: updateError } = await supabase
         .from("quotes")
@@ -164,7 +160,7 @@ const handler = createMcpHandler((server) => {
         .eq("id", quoteId);
 
       if (updateError) {
-        console.error("[MCP] ❌ Supabase update error:", updateError.message);
+        console.error("[MCP] ❌ Update error", updateError);
         return {
           content: [
             {
@@ -176,7 +172,7 @@ const handler = createMcpHandler((server) => {
         };
       }
 
-      console.log(`[MCP] ✅ Surface formula update succeeded for ${quoteId}`);
+      console.log("[MCP] ✅ Successfully updated quote with surface formulas");
 
       return {
         content: [
