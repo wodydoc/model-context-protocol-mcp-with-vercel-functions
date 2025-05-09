@@ -1,24 +1,8 @@
-// /api/sse.ts
-export const GET = async (req: Request): Promise<Response> => {
-  const stream = new ReadableStream({
-    start(controller) {
-      // Keep alive stream open
-      const encoder = new TextEncoder();
-      const ping = () => controller.enqueue(encoder.encode(":\n"));
-      const interval = setInterval(ping, 15000);
+// ✅ /api/sse.ts
+import { createMcpHandler } from "@vercel/mcp-adapter";
 
-      req.signal.addEventListener("abort", () => {
-        clearInterval(interval);
-        controller.close();
-      });
-    },
-  });
+const handler = createMcpHandler(() => {
+  // no tools defined here – it's just the SSE handler endpoint
+});
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
-};
+export const GET = handler;
