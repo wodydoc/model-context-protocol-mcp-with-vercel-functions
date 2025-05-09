@@ -124,8 +124,7 @@ const handler = createMcpHandler((server) => {
     }
   );
 
-  // 📐 applySurfaceEstimates Tool — timeout-safe, log-rich, type-safe
-  // 📐 applySurfaceEstimates Tool — correct, safe, TS-clean
+  // 📐 applySurfaceEstimates Tool — FINAL TS-CLEAN, VERBOSE, TIMEOUT-SAFE
   server.tool(
     "applySurfaceEstimates",
     {
@@ -163,37 +162,33 @@ const handler = createMcpHandler((server) => {
       console.log(`[MCP] Computed: M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`);
 
       try {
-        const updateResult = await withTimeout(
-          supabase
-            .from("quotes")
-            .update({ M1, M2, P1, P2 })
-            .eq("id", quoteId)
-            .throwOnError() as unknown as Promise<{
-            error: null | Error;
-            data: unknown;
-          }>,
-          8000
+        const result = await withTimeout(
+          (async () =>
+            await supabase
+              .from("quotes")
+              .update({ M1, M2, P1, P2 })
+              .eq("id", quoteId)
+              .select()
+              .throwOnError())(),
+          10000
         );
 
-        if (updateResult.error) {
-          console.error("[MCP] ❌ Update error", updateResult.error);
-          return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Failed to apply surface formulas: ${updateResult.error.message}`,
-              },
-            ],
-            isError: true,
-          };
-        }
+        console.log("[MCP] ✅ Supabase update result:", result);
 
-        console.log("[MCP] ✅ Supabase update completed");
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Surface formulas applied (S=${S}, H=${H}) → M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`,
+            },
+          ],
+        };
       } catch (err: unknown) {
         const message =
           err instanceof Error
             ? err.message
             : "Unknown timeout or update error";
+
         console.error("[MCP] ❌ Update failure", err);
         return {
           content: [
@@ -205,15 +200,6 @@ const handler = createMcpHandler((server) => {
           isError: true,
         };
       }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `✅ Surface formulas applied (S=${S}, H=${H}) → M1=${M1}, M2=${M2}, P1=${P1}, P2=${P2}`,
-          },
-        ],
-      };
     }
   );
 });
