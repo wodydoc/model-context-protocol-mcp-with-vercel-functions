@@ -1,6 +1,6 @@
 // scripts/call-apply-surface.mjs
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js"; // 👈 use SSE
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 const origin = process.argv[2];
 const quoteId = process.argv[3];
@@ -10,21 +10,39 @@ if (!origin || !quoteId) {
   process.exit(1);
 }
 
+// Add debug flag to see what's happening
+const DEBUG = true;
+
 async function main() {
-  const transport = new SSEClientTransport(new URL(`${origin}/sse`)); // ✅ 
+  // Update the path to include /api prefix
+  const sseUrl = new URL(`${origin}/api/sse`);
+
+  if (DEBUG) {
+    console.log("Connecting to SSE endpoint:", sseUrl.toString());
+  }
+
+  const transport = new SSEClientTransport(sseUrl);
 
   const client = new Client(
     { name: "test-runner", version: "1.0.0" },
     { capabilities: { prompts: {}, resources: {}, tools: {} } }
   );
 
-  await client.connect(transport);
-  console.log("🔧 Calling tool: applySurfaceEstimates...");
+  try {
+    await client.connect(transport);
+    console.log("🔧 Calling tool: applySurfaceEstimates...");
 
-  const result = await client.callTool("applySurfaceEstimates", { quoteId });
+    const result = await client.callTool("applySurfaceEstimates", { quoteId });
 
-  console.log("📦 Tool response:");
-  console.dir(result, { depth: null });
+    console.log("📦 Tool response:");
+    console.dir(result, { depth: null });
+  } catch (error) {
+    console.error("❌ Error:", error.message);
+    if (error.code) {
+      console.error("Error code:", error.code);
+    }
+    process.exit(1);
+  }
 }
 
 main();
