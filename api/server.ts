@@ -163,6 +163,7 @@ const handler = createMcpHandler(
         console.log(`[MCP] applySurfaceEstimates START → quoteId=${quoteId}`);
 
         try {
+          console.log(`[MCP] Fetching surface+height...`);
           const { data, error } = await withTimeout(
             supabase
               .from("quotes")
@@ -173,15 +174,10 @@ const handler = createMcpHandler(
           );
 
           if (error || !data) {
-            console.error(
-              `[MCP] applySurfaceEstimates FETCH FAIL → ${error?.message}`
-            );
+            console.error(`[MCP] FETCH FAIL → ${error?.message}`);
             return {
               content: [
-                {
-                  type: "text",
-                  text: `❌ Fetch error: ${error?.message}`,
-                },
+                { type: "text", text: `❌ Fetch error: ${error?.message}` },
               ],
               isError: true,
             };
@@ -194,6 +190,7 @@ const handler = createMcpHandler(
           const M1 = M2 * 0.2;
           const P1 = P2 * 0.2;
 
+          console.log(`[MCP] Updating quote fields with S=${S}, H=${H}...`);
           const { error: updateError } = await withTimeout(
             supabase
               .from("quotes")
@@ -203,6 +200,7 @@ const handler = createMcpHandler(
           );
 
           if (updateError) {
+            console.error(`[MCP] UPDATE FAIL → ${updateError.message}`);
             return {
               content: [
                 {
@@ -214,19 +212,17 @@ const handler = createMcpHandler(
             };
           }
 
-          console.log(`[MCP] applySurfaceEstimates DONE → quoteId=${quoteId}`);
+          console.log(`[MCP] DONE → Surface applied to quote ${quoteId}`);
           return {
             content: [
               {
                 type: "text",
-                text: `✅ Surface formulas applied to quote ${quoteId} (S=${S}, H=${H})`,
+                text: `✅ Surface formulas applied (S=${S}, H=${H}) to quote ${quoteId}`,
               },
             ],
           };
         } catch (err: any) {
-          console.error(
-            `[MCP] applySurfaceEstimates ERROR → ${err?.message || err}`
-          );
+          console.error(`[MCP] ERROR → ${err?.message || err}`);
           return {
             content: [
               {
