@@ -1,6 +1,6 @@
 // scripts/call-apply-surface.mjs
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { HttpClientTransport } from "@modelcontextprotocol/sdk/client/http.js"; // Changed from SSE to HTTP
 
 const origin = process.argv[2];
 const quoteId = process.argv[3];
@@ -14,14 +14,14 @@ if (!origin || !quoteId) {
 const DEBUG = true;
 
 async function main() {
-  // Update the path to include /api prefix
-  const sseUrl = new URL(`${origin}/api/sse`);
+  // Update the URL to point to the server endpoint
+  const httpUrl = new URL(`${origin}/api`); // No need for /sse with HTTP transport
 
   if (DEBUG) {
-    console.log("Connecting to SSE endpoint:", sseUrl.toString());
+    console.log("Connecting to HTTP endpoint:", httpUrl.toString());
   }
 
-  const transport = new SSEClientTransport(sseUrl);
+  const transport = new HttpClientTransport(httpUrl);
 
   const client = new Client(
     { name: "test-runner", version: "1.0.0" },
