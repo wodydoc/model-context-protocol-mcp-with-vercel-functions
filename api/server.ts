@@ -24,6 +24,9 @@ function withTimeout<T>(
   ]);
 }
 
+// Use environment variables for Redis
+const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+
 const handler = createMcpHandler(
   (server) => {
     server.tool("echo", { message: z.string() }, async ({ message }) => ({
@@ -243,6 +246,7 @@ const handler = createMcpHandler(
     verboseLogs: true,
     maxDuration: 120, // Increased from 60 to 120 seconds
     basePath: "/api",
+    redisUrl,
   }
 );
 
