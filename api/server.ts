@@ -2,18 +2,22 @@
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
+// import { PostgrestResponse } from "@supabase/postgrest-js";
 
-// 👆 Quote item typing
+// Quote item typing
 type QuoteItem = {
   type: string;
   price: number;
   [key: string]: any;
 };
 
-// ⏱ Timeout wrapper
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+// Timeout wrapper that works with both Promises and Supabase query builders
+function withTimeout<T>(
+  promise: Promise<T> | { then: (onfulfilled: (value: T) => any) => any },
+  ms: number
+): Promise<T> {
   return Promise.race([
-    promise,
+    Promise.resolve(promise), // This handles both Promise and thenable objects
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error("Operation timed out")), ms)
     ),
@@ -22,12 +26,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 const handler = createMcpHandler(
   (server) => {
-    // 🔁 Echo Tool
     server.tool("echo", { message: z.string() }, async ({ message }) => ({
       content: [{ type: "text", text: `Tool echo: ${message}` }],
     }));
 
-    // 💸 updateVAT Tool
     server.tool(
       "updateVAT",
       {
@@ -35,116 +37,145 @@ const handler = createMcpHandler(
         newVat: z.number().min(0).max(1),
       },
       async ({ quoteId, newVat }) => {
-        const { error } = await supabase
-          .from("quotes")
-          .update({ vat: newVat })
-          .eq("id", quoteId);
-
-        if (error) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Failed to update VAT: ${error.message}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: `✅ Updated VAT for quote ${quoteId} to ${(
-                newVat * 100
-              ).toFixed(1)}%`,
-            },
-          ],
-        };
-      }
-    );
-
-    // 🪚 splitPoseItems Tool
-    server.tool(
-      "splitPoseItems",
-      {
-        quoteId: z.string(),
-      },
-      async ({ quoteId }) => {
-        const { data, error: fetchError } = await supabase
-          .from("quotes")
-          .select("items")
-          .eq("id", quoteId)
-          .single();
-
-        if (fetchError || !data) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Could not fetch quote: ${fetchError?.message}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const updatedItems = (data.items as QuoteItem[]).flatMap((item) => {
-          if (item.type === "fourniture_pose") {
-            return [
-              { ...item, type: "fourniture", price: item.price * 0.5 },
-              { ...item, type: "pose", price: item.price * 0.5 },
-            ];
-          }
-          return item;
-        });
-
-        const { error: updateError } = await supabase
-          .from("quotes")
-          .update({ items: updatedItems })
-          .eq("id", quoteId);
-
-        if (updateError) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Failed to split pose items: ${updateError.message}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: `✅ Successfully split fourniture_pose items for quote ${quoteId}`,
-            },
-          ],
-        };
-      }
-    );
-
-    // 📐 applySurfaceEstimates Tool - FINAL TS-CLEAN, VERBOSE, TIMEOUT-SAFE
-    server.tool(
-      "applySurfaceEstimates",
-      {
-        quoteId: z.string(),
-      },
-      async ({ quoteId }) => {
-        console.log(`[MCP] applySurfaceEstimates → quoteId=${quoteId}`);
+        console.log(`[MCP] updateVAT → quoteId=${quoteId} newVat=${newVat}`);
 
         try {
-          const { data, error } = await supabase
-            .from("quotes")
-            .select("surface, height")
-            .eq("id", quoteId)
-            .single();
+          const { error } = await withTimeout(
+            supabase.from("quotes").update({ vat: newVat }).eq("id", quoteId),
+            5000
+          );
+
+          if (error) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `❌ Failed to update VAT: ${error.message}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `✅ Updated VAT for quote ${quoteId} to ${(
+                  newVat * 100
+                ).toFixed(1)}%`,
+              },
+            ],
+          };
+        } catch (err: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `❌ Error: ${err?.message || "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    server.tool(
+      "splitPoseItems",
+      { quoteId: z.string() },
+      async ({ quoteId }) => {
+        console.log(`[MCP] splitPoseItems → quoteId=${quoteId}`);
+
+        try {
+          const { data, error } = await withTimeout(
+            supabase.from("quotes").select("items").eq("id", quoteId).single(),
+            5000
+          );
 
           if (error || !data) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `❌ Could not fetch quote: ${error?.message}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const updatedItems = (data.items as QuoteItem[]).flatMap((item) =>
+            item.type === "fourniture_pose"
+              ? [
+                  { ...item, type: "fourniture", price: item.price * 0.5 },
+                  { ...item, type: "pose", price: item.price * 0.5 },
+                ]
+              : item
+          );
+
+          const { error: updateError } = await withTimeout(
+            supabase
+              .from("quotes")
+              .update({ items: updatedItems })
+              .eq("id", quoteId),
+            5000
+          );
+
+          if (updateError) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `❌ Failed to split pose items: ${updateError.message}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `✅ Successfully split fourniture_pose items for quote ${quoteId}`,
+              },
+            ],
+          };
+        } catch (err: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `❌ Error: ${err?.message || "Unknown error"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    server.tool(
+      "applySurfaceEstimates",
+      { quoteId: z.string() },
+      async ({ quoteId }) => {
+        console.log(`[MCP] applySurfaceEstimates START → quoteId=${quoteId}`);
+
+        try {
+          const { data, error } = await withTimeout(
+            supabase
+              .from("quotes")
+              .select("surface, height")
+              .eq("id", quoteId)
+              .single(),
+            5000
+          );
+
+          if (error || !data) {
+            console.error(
+              `[MCP] applySurfaceEstimates FETCH FAIL → ${error?.message}`
+            );
             return {
               content: [
                 {
@@ -163,13 +194,27 @@ const handler = createMcpHandler(
           const M1 = M2 * 0.2;
           const P1 = P2 * 0.2;
 
-          await supabase
-            .from("quotes")
-            .update({ M1, M2, P1, P2 })
-            .eq("id", quoteId)
-            .select()
-            .throwOnError();
+          const { error: updateError } = await withTimeout(
+            supabase
+              .from("quotes")
+              .update({ M1, M2, P1, P2 })
+              .eq("id", quoteId),
+            5000
+          );
 
+          if (updateError) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `❌ Update error: ${updateError.message}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          console.log(`[MCP] applySurfaceEstimates DONE → quoteId=${quoteId}`);
           return {
             content: [
               {
@@ -178,11 +223,18 @@ const handler = createMcpHandler(
               },
             ],
           };
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : "Unknown error";
+        } catch (err: any) {
+          console.error(
+            `[MCP] applySurfaceEstimates ERROR → ${err?.message || err}`
+          );
           return {
             content: [
-              { type: "text", text: `❌ Async update failed: ${message}` },
+              {
+                type: "text",
+                text: `❌ Async update failed: ${
+                  err?.message || "Unknown error"
+                }`,
+              },
             ],
             isError: true,
           };
@@ -190,16 +242,11 @@ const handler = createMcpHandler(
       }
     );
   },
+  {}, // Empty or valid options
   {
-    // Optional server options
-  },
-  {
-    // Configuration options for MCP
     verboseLogs: true,
-    maxDuration: 60,
+    maxDuration: 120, // Increased from 60 to 120 seconds
     basePath: "/api",
-    // If you need Redis for SSE state management (optional):
-    // redisUrl: process.env.REDIS_URL,
   }
 );
 
