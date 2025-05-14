@@ -17,7 +17,7 @@ const DEBUG = true;
 
 async function main() {
   // Update the URL to point to the server endpoint
-  const httpUrl = new URL(`${origin}/api`); // No need for /sse with HTTP transport
+  const httpUrl = new URL(`${origin}/api/server`); // No need for /sse with HTTP transport
 
   if (DEBUG) {
     console.log("Connecting to HTTP endpoint:", httpUrl.toString());
