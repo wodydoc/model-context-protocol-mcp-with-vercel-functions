@@ -13,7 +13,7 @@ if (!origin || !quoteId) {
 const DEBUG = true;
 
 async function main() {
-  const httpUrl = new URL(`${origin}/api/server`);
+  const httpUrl = new URL(`${origin}/api/sse`);
   if (DEBUG) console.log("Connecting to HTTP endpoint:", httpUrl.toString());
 
   const transport = new StreamableHTTPClientTransport(httpUrl);
