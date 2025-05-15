@@ -1,12 +1,8 @@
 // /api/server.ts
+export const config = { runtime: "edge" };
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
-
-// at the very top of the file
-export const config = {
-  runtime: "edge",
-};
 
 // Quote item typing
 type QuoteItem = {
