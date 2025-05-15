@@ -1,9 +1,8 @@
+export const config = { runtime: "edge" };
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/server.ts
 // Edge‐runtime MCP HTTP endpoint: registers all tools and handles GET/POST/DELETE
 // ─────────────────────────────────────────────────────────────────────────────
-
-export const config = { runtime: "edge" };
 
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { registerTools } from "../lib/mcp-tools.js";

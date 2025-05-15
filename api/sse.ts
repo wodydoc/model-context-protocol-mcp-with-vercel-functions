@@ -1,9 +1,8 @@
+export const config = { runtime: "edge" };
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/sse.ts
 // Edge‐runtime MCP SSE endpoint: real‐time streaming for debugging or async
 // ─────────────────────────────────────────────────────────────────────────────
-
-export const config = { runtime: "edge" };
 
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { registerTools } from "../lib/mcp-tools.js";
