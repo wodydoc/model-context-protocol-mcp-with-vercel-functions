@@ -1,39 +1,54 @@
+#!/usr/bin/env node
 // scripts/call-apply-surface.mjs
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { HttpClientTransport } from "@modelcontextprotocol/sdk/client/http.js";
+// Simple JSON POST to your /api/server endpoint—no streaming, no SDK.
 
-const origin = process.argv[2];
-const quoteId = process.argv[3];
+const [, , origin, quoteId] = process.argv;
 
 if (!origin || !quoteId) {
   console.error("Usage: node scripts/call-apply-surface.mjs <url> <quoteId>");
   process.exit(1);
 }
 
-const DEBUG = true;
-
 async function main() {
-  const httpUrl = new URL(`${origin}/api/sse`);
-  if (DEBUG) console.log("Connecting to HTTP endpoint:", httpUrl.toString());
+  // Build the URL and ensure no trailing slash
+  const url = `${origin.replace(/\/$/, "")}/api/server`;
+  console.log("🔧 Calling applySurfaceEstimates →", url);
 
-  const transport = new HttpClientTransport(httpUrl);
+  // MCP tool_request payload
+  const body = {
+    type: "tool_request",
+    tool: "applySurfaceEstimates",
+    arguments: { quoteId },
+  };
 
-  const client = new Client(
-    { name: "test-runner", version: "1.0.0" },
-    { capabilities: { prompts: {}, resources: {}, tools: {} } }
-  );
-
+  let res;
   try {
-    await client.connect(transport);
-    console.log("🔧 Calling tool: applySurfaceEstimates...");
-    const result = await client.callTool("applySurfaceEstimates", { quoteId });
-    console.log("📦 Tool response:");
-    console.dir(result, { depth: null });
-  } catch (error) {
-    console.error("❌ Error:", error.message);
-    if (error.code) console.error("Error code:", error.code);
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.error("❌ Network error:", err.message);
     process.exit(1);
   }
+
+  if (!res.ok) {
+    console.error(`❌ Server returned ${res.status} ${res.statusText}`);
+    console.error(await res.text());
+    process.exit(1);
+  }
+
+  let payload;
+  try {
+    payload = await res.json();
+  } catch (err) {
+    console.error("❌ Failed to parse JSON:", err.message);
+    process.exit(1);
+  }
+
+  console.log("📦 Tool response:");
+  console.dir(payload, { depth: null });
 }
 
 main();
