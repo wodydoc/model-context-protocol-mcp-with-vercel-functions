@@ -1,18 +1,29 @@
-export const config = { runtime: "edge" };
+// ─────────────────────────────────────────────────────────────────────────────
 // /api/sse.ts
-import { createMcpHandler } from "@vercel/mcp-adapter";
+// Edge‐runtime MCP SSE endpoint: real‐time streaming for debugging or async
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Standalone SSE endpoint (for MCP debugging or async responses)
+export const config = { runtime: "edge" };
+
+import { createMcpHandler } from "@vercel/mcp-adapter";
+import { registerTools } from "../lib/mcp-tools.js";
+
+/**
+ * Construct the MCP handler for SSE:
+ * - registerTools: use same tool set as /api/server.ts
+ * - {}: no additional init options
+ * - config: basePath, logging, shorter timeout for streaming
+ */
 const handler = createMcpHandler(
-  () => {
-    // Tools are defined in server.ts
-  },
+  registerTools,
   {},
   {
-    verboseLogs: true,
-    maxDuration: 60,
     basePath: "/api",
+    verboseLogs: true,
+    maxDuration: 60, // 1 minute max for streaming
+    redisUrl: process.env.REDIS_URL, // Upstash Redis (rediss://…)
   }
 );
 
+/** Expose GET only for SSE streams */
 export const GET = handler;
