@@ -235,7 +235,7 @@ const handler = createMcpHandler(
     basePath: "/api",
     verboseLogs: true,
     maxDuration: 120,
-    redisUrl: process.env.UPSTASH_REDIS_REST_URL!,
+    redisUrl: process.env.REDIS_URL, // ✅ Must be rediss:// based
   }
 );
 
