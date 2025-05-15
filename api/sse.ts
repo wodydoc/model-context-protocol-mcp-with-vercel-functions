@@ -25,4 +25,7 @@ const handler = createMcpHandler(
 );
 
 /** Expose GET only for SSE streams */
-export const GET = handler;
+// export const GET = handler;
+
+// **DEFAULT EXPORT** for Vercel Functions
+export default handler;

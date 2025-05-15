@@ -25,6 +25,9 @@ const handler = createMcpHandler(
 );
 
 /** Expose HTTP methods for the MCP handler */
-export const GET = handler;
-export const POST = handler;
-export const DELETE = handler;
+// export const GET = handler;
+// export const POST = handler;
+// export const DELETE = handler;
+
+// **DEFAULT EXPORT** so Vercel Functions actually invoke this handler
+export default handler;
