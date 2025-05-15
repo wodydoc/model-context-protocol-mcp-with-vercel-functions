@@ -1,5 +1,5 @@
-// /api/sse.ts
 export const config = { runtime: "edge" };
+// /api/sse.ts
 import { createMcpHandler } from "@vercel/mcp-adapter";
 
 // Standalone SSE endpoint (for MCP debugging or async responses)

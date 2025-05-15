@@ -1,5 +1,5 @@
-// /api/server.ts
 export const config = { runtime: "edge" };
+// /api/server.ts
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
