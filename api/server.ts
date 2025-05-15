@@ -2,6 +2,7 @@
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
+import { Redis } from "@upstash/redis"; // ✅ SDK import
 
 // Quote item typing
 type QuoteItem = {
@@ -23,9 +24,8 @@ function withTimeout<T>(
   ]);
 }
 
-// 🌐 Redis setup: Use Upstash Redis credentials from Vercel env
-// const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-const redisUrl = process.env.REDIS_URL;
+// 🌐 Redis setup
+const redis = Redis.fromEnv(); // ✅ SDK-based instance
 
 // 🔧 Create MCP handler
 const handler = createMcpHandler(
@@ -235,7 +235,7 @@ const handler = createMcpHandler(
     basePath: "/api",
     verboseLogs: true,
     maxDuration: 120,
-    redisUrl, // 🧠 Connected to Upstash
+    redisUrl: process.env.UPSTASH_REDIS_REST_URL!,
   }
 );
 
