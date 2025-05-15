@@ -2,7 +2,11 @@
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
-// import { Redis } from "@upstash/redis"; 
+
+// at the very top of the file
+export const config = {
+  runtime: "edge",
+};
 
 // Quote item typing
 type QuoteItem = {
@@ -25,7 +29,7 @@ function withTimeout<T>(
 }
 
 // 🌐 Redis setup
-// const redis = Redis.fromEnv(); 
+// const redis = Redis.fromEnv();
 
 // 🔧 Create MCP handler
 const handler = createMcpHandler(
