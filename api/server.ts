@@ -1,33 +1,26 @@
 export const config = { runtime: "edge" };
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/server.ts
-// Edge‐runtime MCP HTTP endpoint: registers all tools and handles GET/POST/DELETE
+// Single Edge Function for MCP: handles SSE (on GET+Accept) and JSON POST
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { registerTools } from "../lib/mcp-tools.js";
 
 /**
- * Construct the MCP handler:
- * - registerTools: centralized tool registrations
- * - {}: no additional init options
- * - config: basePath, logging, timeouts, and Redis URL
+ * This one handler will:
+ * - Stream SSE when you do GET + Accept: text/event-stream
+ * - Respond to tool_request JSON when you POST a MCP payload
  */
 const handler = createMcpHandler(
   registerTools,
   {},
   {
-    basePath: "/api",
     verboseLogs: true,
     maxDuration: 120, // 2 minutes max per request
     redisUrl: process.env.REDIS_URL, // Upstash Redis (rediss://…)
   }
 );
-
-/** Expose HTTP methods for the MCP handler */
-// export const GET = handler;
-// export const POST = handler;
-// export const DELETE = handler;
 
 // **DEFAULT EXPORT** so Vercel Functions actually invoke this handler
 export default handler;
