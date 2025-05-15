@@ -8,17 +8,18 @@ import { createMcpHandler } from "@vercel/mcp-adapter";
 import { registerTools } from "../lib/mcp-tools.js";
 
 /**
- * This one handler will:
- * - Stream SSE when you do GET + Accept: text/event-stream
- * - Respond to tool_request JSON when you POST a MCP payload
+ * Single Edge Function for MCP:
+ *  • GET + Accept:text/event-stream → SSE
+ *  • POST + MCP JSON         → tool calls
  */
 const handler = createMcpHandler(
   registerTools,
   {},
   {
     verboseLogs: true,
-    maxDuration: 120, // 2 minutes max per request
-    redisUrl: process.env.REDIS_URL, // Upstash Redis (rediss://…)
+    maxDuration: 120, // 2 min
+    redisUrl: process.env.REDIS_URL,
+    basePath: "/api", // ← makes it match /api/server
   }
 );
 
