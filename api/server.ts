@@ -24,7 +24,8 @@ function withTimeout<T>(
 }
 
 // 🌐 Redis setup: Use Upstash Redis credentials from Vercel env
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+// const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redisUrl = process.env.REDIS_URL;
 
 // 🔧 Create MCP handler
 const handler = createMcpHandler(
