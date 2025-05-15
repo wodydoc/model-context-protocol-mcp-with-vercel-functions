@@ -2,7 +2,6 @@
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { z } from "zod";
 import { supabase } from "../lib/supabase.js";
-// import { PostgrestResponse } from "@supabase/postgrest-js";
 
 // Quote item typing
 type QuoteItem = {
@@ -11,22 +10,23 @@ type QuoteItem = {
   [key: string]: any;
 };
 
-// Timeout wrapper that works with both Promises and Supabase query builders
+// Generic timeout utility
 function withTimeout<T>(
   promise: Promise<T> | { then: (onfulfilled: (value: T) => any) => any },
   ms: number
 ): Promise<T> {
   return Promise.race([
-    Promise.resolve(promise), // This handles both Promise and thenable objects
+    Promise.resolve(promise),
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error("Operation timed out")), ms)
     ),
   ]);
 }
 
-// Use environment variables for Redis
-const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+// 🌐 Redis setup: Use Upstash Redis credentials from Vercel env
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 
+// 🔧 Create MCP handler
 const handler = createMcpHandler(
   (server) => {
     server.tool("echo", { message: z.string() }, async ({ message }) => ({
@@ -41,13 +41,11 @@ const handler = createMcpHandler(
       },
       async ({ quoteId, newVat }) => {
         console.log(`[MCP] updateVAT → quoteId=${quoteId} newVat=${newVat}`);
-
         try {
           const { error } = await withTimeout(
             supabase.from("quotes").update({ vat: newVat }).eq("id", quoteId),
             5000
           );
-
           if (error) {
             return {
               content: [
@@ -59,7 +57,6 @@ const handler = createMcpHandler(
               isError: true,
             };
           }
-
           return {
             content: [
               {
@@ -86,16 +83,16 @@ const handler = createMcpHandler(
 
     server.tool(
       "splitPoseItems",
-      { quoteId: z.string() },
+      {
+        quoteId: z.string(),
+      },
       async ({ quoteId }) => {
         console.log(`[MCP] splitPoseItems → quoteId=${quoteId}`);
-
         try {
           const { data, error } = await withTimeout(
             supabase.from("quotes").select("items").eq("id", quoteId).single(),
             5000
           );
-
           if (error || !data) {
             return {
               content: [
@@ -107,7 +104,6 @@ const handler = createMcpHandler(
               isError: true,
             };
           }
-
           const updatedItems = (data.items as QuoteItem[]).flatMap((item) =>
             item.type === "fourniture_pose"
               ? [
@@ -116,7 +112,6 @@ const handler = createMcpHandler(
                 ]
               : item
           );
-
           const { error: updateError } = await withTimeout(
             supabase
               .from("quotes")
@@ -124,7 +119,6 @@ const handler = createMcpHandler(
               .eq("id", quoteId),
             5000
           );
-
           if (updateError) {
             return {
               content: [
@@ -136,7 +130,6 @@ const handler = createMcpHandler(
               isError: true,
             };
           }
-
           return {
             content: [
               {
@@ -161,12 +154,12 @@ const handler = createMcpHandler(
 
     server.tool(
       "applySurfaceEstimates",
-      { quoteId: z.string() },
+      {
+        quoteId: z.string(),
+      },
       async ({ quoteId }) => {
         console.log(`[MCP] applySurfaceEstimates START → quoteId=${quoteId}`);
-
         try {
-          console.log(`[MCP] Fetching surface+height...`);
           const { data, error } = await withTimeout(
             supabase
               .from("quotes")
@@ -175,7 +168,6 @@ const handler = createMcpHandler(
               .single(),
             5000
           );
-
           if (error || !data) {
             console.error(`[MCP] FETCH FAIL → ${error?.message}`);
             return {
@@ -185,7 +177,6 @@ const handler = createMcpHandler(
               isError: true,
             };
           }
-
           const S = data.surface ?? 75;
           const H = data.height ?? 2.6;
           const M2 = S * H;
@@ -193,7 +184,6 @@ const handler = createMcpHandler(
           const M1 = M2 * 0.2;
           const P1 = P2 * 0.2;
 
-          console.log(`[MCP] Updating quote fields with S=${S}, H=${H}...`);
           const { error: updateError } = await withTimeout(
             supabase
               .from("quotes")
@@ -201,7 +191,6 @@ const handler = createMcpHandler(
               .eq("id", quoteId),
             5000
           );
-
           if (updateError) {
             console.error(`[MCP] UPDATE FAIL → ${updateError.message}`);
             return {
@@ -215,7 +204,6 @@ const handler = createMcpHandler(
             };
           }
 
-          console.log(`[MCP] DONE → Surface applied to quote ${quoteId}`);
           return {
             content: [
               {
@@ -241,12 +229,12 @@ const handler = createMcpHandler(
       }
     );
   },
-  {}, // Empty or valid options
+  {}, // No server-specific options
   {
-    verboseLogs: true,
-    maxDuration: 120, // Increased from 60 to 120 seconds
     basePath: "/api",
-    redisUrl,
+    verboseLogs: true,
+    maxDuration: 120,
+    redisUrl, // 🧠 Connected to Upstash
   }
 );
 

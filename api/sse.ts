@@ -1,11 +1,10 @@
 // /api/sse.ts
 import { createMcpHandler } from "@vercel/mcp-adapter";
 
-// Create a dedicated SSE handler
+// Standalone SSE endpoint (for MCP debugging or async responses)
 const handler = createMcpHandler(
   () => {
-    // This is intentionally empty as we're just setting up the SSE endpoint
-    // All tools are registered in server.ts
+    // Tools are defined in server.ts
   },
   {},
   {
