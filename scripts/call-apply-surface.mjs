@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // scripts/call-apply-surface.mjs
-// Simple JSON POST to your /api/server endpoint—no streaming, no SDK.
 
 const [, , origin, quoteId] = process.argv;
 
@@ -10,11 +9,9 @@ if (!origin || !quoteId) {
 }
 
 async function main() {
-  // Build the URL and ensure no trailing slash
   const url = `${origin.replace(/\/$/, "")}/api/server`;
   console.log("🔧 Calling applySurfaceEstimates →", url);
 
-  // MCP tool_request payload
   const body = {
     type: "tool_request",
     tool: "applySurfaceEstimates",
@@ -25,7 +22,11 @@ async function main() {
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // <— This is the missing piece
+        Accept: "application/json,text/event-stream",
+      },
       body: JSON.stringify(body),
     });
   } catch (err) {
