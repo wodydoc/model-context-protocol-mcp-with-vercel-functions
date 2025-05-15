@@ -1,6 +1,6 @@
 // scripts/call-apply-surface.mjs
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { HttpClientTransport } from "@modelcontextprotocol/sdk/client/http.js";
 
 const origin = process.argv[2];
 const quoteId = process.argv[3];
@@ -16,7 +16,7 @@ async function main() {
   const httpUrl = new URL(`${origin}/api/sse`);
   if (DEBUG) console.log("Connecting to HTTP endpoint:", httpUrl.toString());
 
-  const transport = new StreamableHTTPClientTransport(httpUrl);
+  const transport = new HttpClientTransport(httpUrl);
 
   const client = new Client(
     { name: "test-runner", version: "1.0.0" },
