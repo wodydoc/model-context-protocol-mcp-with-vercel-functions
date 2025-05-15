@@ -25,7 +25,7 @@ async function main() {
       headers: {
         "Content-Type": "application/json",
         // <— This is the missing piece
-        Accept: "application/json,text/event-stream",
+        Accept: "application/json",
       },
       body: JSON.stringify(body),
     });
