@@ -1,9 +1,9 @@
 /**
  * /lib/mcp‑tools.ts
  *
- * Centralized registration of all MCP tools.
- * Import and pass `registerTools` into both `/api/server.ts` and `/api/sse.ts`
- * so that both HTTP and SSE endpoints share the same tool definitions.
+ * Centralized registration of all your MCP tools.
+ * Import & pass `registerTools` into your handler so HTTP & SSE
+ * both share the same tool definitions.
  */
 
 import { createMcpHandler } from "@vercel/mcp-adapter";
@@ -11,76 +11,53 @@ import { z } from "zod";
 import { supabase } from "./supabase.js";
 
 /**
- * Derive the actual MCP server type from createMcpHandler’s signature:
- *
- * 1. typeof createMcpHandler is:
- *      (init: (server: McpServer) => void, opts: ..., config: ...) => Handler
- * 2. Parameters<typeof createMcpHandler>[0] is the “init” callback type:
- *      (server: McpServer) => void
- * 3. Parameters<…>[0] of that callback is the McpServer itself.
+ * Derive the MCP‑server type from createMcpHandler’s signature:
+ * 1. typeof createMcpHandler = (init, opts, config) => Handler
+ * 2. The first parameter `init` has type: (server: McpServer) => void
+ * 3. So `Server` = the type of that `server` parameter.
  */
 type Server = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 
-/** Shared item shape for splitPoseItems */
+/** shared shape for quote‐item arrays */
 type QuoteItem = {
   type: string;
   price: number;
   [key: string]: any;
 };
 
-/**
- * Utility: wrap any (thenable) in a timeout.
- * We cast to Promise<T> below so TS won’t complain about Postgrest builders.
- */
+/** wrap any thenable in a timeout (casts to Promise internally) */
 function withTimeout<T>(promise: any, ms: number): Promise<T> {
   return Promise.race([
-    promise as Promise<T>, // cast builder/thenable to Promise<T>
+    promise as Promise<T>,
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error("Operation timed out")), ms)
     ),
   ]);
 }
 
-/**
- * registerTools
- *
- * Add all your server.tool(...) calls here, in one place.
- * Both /api/server.ts and /api/sse.ts should import & pass this into createMcpHandler.
- */
+/** Register all your tools here */
 export function registerTools(server: Server) {
   // ─────────────────────────────────────────────────────────────────
-  // 1) Echo
-  // Simple ping tool that returns its input.
+  // 1) echo: simple round‑trip
   // ─────────────────────────────────────────────────────────────────
   server.tool(
     "echo",
     { message: z.string() },
     async (input: { message: string }) => ({
-      content: [
-        {
-          type: "text",
-          text: `Tool echo: ${input.message}`,
-        },
-      ],
+      content: [{ type: "text", text: `Tool echo: ${input.message}` }],
     })
   );
 
   // ─────────────────────────────────────────────────────────────────
-  // 2) updateVAT
-  // Update the VAT field on a quote record.
+  // 2) updateVAT: adjust the VAT on a quote
   // ─────────────────────────────────────────────────────────────────
   server.tool(
     "updateVAT",
-    {
-      quoteId: z.string(),
-      newVat: z.number().min(0).max(1),
-    },
+    { quoteId: z.string(), newVat: z.number().min(0).max(1) },
     async (input: { quoteId: string; newVat: number }) => {
       const { quoteId, newVat } = input;
-      console.log(`[MCP] updateVAT → quoteId=${quoteId} newVat=${newVat}`);
-
+      console.log(`[MCP] updateVAT → ${quoteId} @ ${newVat}`);
       try {
-        // Cast the Postgrest builder to Promise<{ error: any }>
         const { error } = await withTimeout<{ error: any }>(
           supabase
             .from("quotes")
@@ -88,56 +65,41 @@ export function registerTools(server: Server) {
             .eq("id", quoteId) as unknown as Promise<{ error: any }>,
           5000
         );
-
         if (error) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Failed to update VAT: ${error.message}`,
-              },
-            ],
             isError: true,
+            content: [{ type: "text", text: `❌ Failed: ${error.message}` }],
           };
         }
-
         return {
           content: [
             {
               type: "text",
-              text: `✅ Updated VAT for quote ${quoteId} to ${(
-                newVat * 100
-              ).toFixed(1)}%`,
+              text: `✅ VAT updated for ${quoteId} to ${(newVat * 100).toFixed(
+                1
+              )}%`,
             },
           ],
         };
       } catch (err: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `❌ Error: ${err.message || "Unknown error"}`,
-            },
-          ],
           isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
         };
       }
     }
   );
 
   // ─────────────────────────────────────────────────────────────────
-  // 3) splitPoseItems
-  // Split any "fourniture_pose" line into two separate items.
+  // 3) splitPoseItems: split fourniture_pose line‑items
   // ─────────────────────────────────────────────────────────────────
   server.tool(
     "splitPoseItems",
     { quoteId: z.string() },
     async (input: { quoteId: string }) => {
       const { quoteId } = input;
-      console.log(`[MCP] splitPoseItems → quoteId=${quoteId}`);
-
+      console.log(`[MCP] splitPoseItems → ${quoteId}`);
       try {
-        // Read the items array
         const { data, error } = await withTimeout<{
           data: { items: QuoteItem[] };
           error: any;
@@ -152,20 +114,14 @@ export function registerTools(server: Server) {
           }>,
           5000
         );
-
         if (error || !data) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Could not fetch quote: ${error?.message}`,
-              },
-            ],
             isError: true,
+            content: [
+              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+            ],
           };
         }
-
-        // Transform the items
         const updatedItems = data.items.flatMap((item) =>
           item.type === "fourniture_pose"
             ? [
@@ -174,63 +130,48 @@ export function registerTools(server: Server) {
               ]
             : [item]
         );
-
-        // Write them back
-        const { error: updateError } = await withTimeout<{ error: any }>(
+        const { error: upd } = await withTimeout<{ error: any }>(
           supabase
             .from("quotes")
             .update({ items: updatedItems })
             .eq("id", quoteId) as unknown as Promise<{ error: any }>,
           5000
         );
-
-        if (updateError) {
+        if (upd) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Failed to split pose items: ${updateError.message}`,
-              },
-            ],
             isError: true,
+            content: [
+              { type: "text", text: `❌ Write failed: ${upd.message}` },
+            ],
           };
         }
-
         return {
           content: [
             {
               type: "text",
-              text: `✅ Successfully split fourniture_pose items for quote ${quoteId}`,
+              text: `✅ Split fourniture_pose for ${quoteId}`,
             },
           ],
         };
       } catch (err: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `❌ Error: ${err.message || "Unknown error"}`,
-            },
-          ],
           isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
         };
       }
     }
   );
 
   // ─────────────────────────────────────────────────────────────────
-  // 4) applySurfaceEstimates
-  // Calculate M1/M2/P1/P2 from surface & height, then save.
+  // 4) applySurfaceEstimates: compute M1/M2/P1/P2
   // ─────────────────────────────────────────────────────────────────
   server.tool(
     "applySurfaceEstimates",
     { quoteId: z.string() },
     async (input: { quoteId: string }) => {
       const { quoteId } = input;
-      console.log(`[MCP] applySurfaceEstimates START → quoteId=${quoteId}`);
-
+      console.log(`[MCP] applySurfaceEstimates → ${quoteId}`);
       try {
-        // Fetch surface & height
         const { data, error } = await withTimeout<{
           data: { surface?: number; height?: number };
           error: any;
@@ -245,65 +186,47 @@ export function registerTools(server: Server) {
           }>,
           5000
         );
-
         if (error || !data) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Fetch error: ${error?.message}`,
-              },
-            ],
             isError: true,
+            content: [
+              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+            ],
           };
         }
-
-        // Compute estimates
         const S = data.surface ?? 75;
         const H = data.height ?? 2.6;
         const M2 = S * H;
         const P2 = S;
         const M1 = M2 * 0.2;
         const P1 = P2 * 0.2;
-
-        // Save results
-        const { error: updateError } = await withTimeout<{ error: any }>(
+        const { error: upd } = await withTimeout<{ error: any }>(
           supabase
             .from("quotes")
             .update({ M1, M2, P1, P2 })
             .eq("id", quoteId) as unknown as Promise<{ error: any }>,
           5000
         );
-
-        if (updateError) {
+        if (upd) {
           return {
-            content: [
-              {
-                type: "text",
-                text: `❌ Update error: ${updateError.message}`,
-              },
-            ],
             isError: true,
+            content: [
+              { type: "text", text: `❌ Write failed: ${upd.message}` },
+            ],
           };
         }
-
         return {
           content: [
             {
               type: "text",
-              text: `✅ Surface formulas applied (S=${S}, H=${H}) to quote ${quoteId}`,
+              text: `✅ Surface estimates applied to ${quoteId} (S=${S}, H=${H})`,
             },
           ],
         };
       } catch (err: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `❌ Async update failed: ${err.message || "Unknown error"}`,
-            },
-          ],
           isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
         };
       }
     }
