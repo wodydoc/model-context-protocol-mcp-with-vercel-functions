@@ -36,6 +36,7 @@ All tools are typed with `zod` and safely integrated via Supabase.
 ```
 .
 ├── api
+│   ├── apply-surface.ts         # Direct API endpoint for surface estimates
 │   ├── health.ts                # Health check endpoint for Supabase connection
 │   └── server.ts                # MCP handler with Node.js runtime config
 ├── lib
@@ -44,7 +45,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 ├── public
 │   └── index.html               # Basic landing page
 ├── scripts
-│   ├── call-apply-surface.mjs   # Script to test applySurfaceEstimates tool
+│   ├── call-apply-surface-direct.mjs  # Script to test direct API endpoint
+│   ├── call-apply-surface.mjs         # Script to test via MCP
 │   ├── test-client.mjs          # Client to invoke tools via HTTP
 │   └── test-streamable-http-client.mjs
 ├── .env                         # Populated via `vercel env pull`
@@ -53,6 +55,26 @@ All tools are typed with `zod` and safely integrated via Supabase.
 └── package.json
 
 ```
+
+---
+
+## 🔌 Direct API Implementation
+
+To avoid SSE-related issues with the MCP adapter in serverless environments, we've implemented a direct API approach for critical tools:
+
+```ts
+// Direct API endpoint that bypasses MCP adapter
+import type { NextApiRequest, NextApiResponse } from "next";
+import { supabase } from "../lib/supabase.js";
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+// Implementation details...
+}
+```
+
+This approach:
+- Avoids the `addEventListener` error in serverless functions
+- Provides more reliable operation without Redis dependency
+- Maintains the same business logic as the MCP tool
 
 ---
 
@@ -121,7 +143,8 @@ SSE (Server-Sent Events) functionality is temporarily disabled to prevent the ad
 
 ## 🧽 Roadmap
 
-* [ ] `applySurfaceEstimates` tool (S × H rules)
+* ✅ `applySurfaceEstimates` tool (S × H rules)
+* ✅ Implement direct API fallback for MCP adapter issues
 * [ ] `fillMissingInfo` tool (e.g. coats, brands, sizes)
 * [ ] Post-generation `quoteLinter` validator agent
 * [ ] Implement proper SSE support with Redis

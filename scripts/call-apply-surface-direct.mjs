@@ -1,22 +1,18 @@
 #!/usr/bin/env node
-// scripts/call-apply-surface.mjs
+// scripts/call-apply-surface-direct.mjs
 
 const [, , origin, quoteId] = process.argv;
 
 if (!origin || !quoteId) {
-  console.error("Usage: node scripts/call-apply-surface.mjs <url> <quoteId>");
+  console.error(
+    "Usage: node scripts/call-apply-surface-direct.mjs <url> <quoteId>"
+  );
   process.exit(1);
 }
 
 async function main() {
-  const url = `${origin.replace(/\/$/, "")}/api/server`;
-  console.log("🔧 Calling applySurfaceEstimates →", url);
-
-  const body = {
-    type: "tool_request",
-    tool: "applySurfaceEstimates",
-    arguments: { quoteId },
-  };
+  const url = `${origin.replace(/\/$/, "")}/api/apply-surface`;
+  console.log("🔧 Calling direct apply-surface →", url);
 
   let res;
   try {
@@ -24,9 +20,8 @@ async function main() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ quoteId }),
     });
   } catch (err) {
     console.error("❌ Network error:", err.message);
@@ -56,8 +51,8 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("✅ Tool executed successfully");
-  console.log("📦 Tool response:");
+  console.log("✅ Surface estimates applied successfully");
+  console.log("📦 Response:");
   console.dir(payload, { depth: null });
 }
 
