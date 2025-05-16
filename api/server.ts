@@ -8,6 +8,9 @@
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { registerTools } from "../lib/mcp-tools.js";
 
+// Force Node.js runtime instead of Edge
+export const config = { runtime: "nodejs" };
+
 /**
  * One handler to rule them all:
  *  • GET + Accept:text/event‑stream → SSE
@@ -15,16 +18,13 @@ import { registerTools } from "../lib/mcp-tools.js";
  */
 const handler = createMcpHandler(
   registerTools,
-  {
-    // Server options - keep this empty or add valid options
-  },
+  {}, // Keep server options empty to avoid TypeScript errors
   {
     verboseLogs: true,
     maxDuration: 120, // 2 minutes max
-    redisUrl: process.env.REDIS_URL,
-    // Add basePath to properly configure endpoints
+    // Comment out Redis URL to disable SSE temporarily
+    // redisUrl: process.env.REDIS_URL,
     basePath: "/api",
-    // ⇢ No basePath needed here! the function lives at /api/server
   }
 );
 

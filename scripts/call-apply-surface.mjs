@@ -24,7 +24,6 @@ async function main() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // <— This is the missing piece
         Accept: "application/json",
       },
       body: JSON.stringify(body),
@@ -36,7 +35,15 @@ async function main() {
 
   if (!res.ok) {
     console.error(`❌ Server returned ${res.status} ${res.statusText}`);
-    console.error(await res.text());
+    try {
+      // Try to parse error as JSON for better formatting
+      const errorText = await res.text();
+      const errorJson = JSON.parse(errorText);
+      console.error(JSON.stringify(errorJson, null, 2));
+    } catch (e) {
+      // Fallback to raw text if not JSON
+      console.error(await res.text());
+    }
     process.exit(1);
   }
 
@@ -45,11 +52,16 @@ async function main() {
     payload = await res.json();
   } catch (err) {
     console.error("❌ Failed to parse JSON:", err.message);
+    console.error("Raw response:", await res.text());
     process.exit(1);
   }
 
+  console.log("✅ Tool executed successfully");
   console.log("📦 Tool response:");
   console.dir(payload, { depth: null });
 }
 
-main();
+main().catch((err) => {
+  console.error("❌ Unhandled error:", err);
+  process.exit(1);
+});

@@ -170,8 +170,11 @@ export function registerTools(server: Server) {
     { quoteId: z.string() },
     async (input: { quoteId: string }) => {
       const { quoteId } = input;
-      console.log(`[MCP] applySurfaceEstimates → ${quoteId}`);
+      console.log(`[MCP] ⚙️ START: applySurfaceEstimates for quote ${quoteId}`);
+
       try {
+        // Step 1: Fetch quote data
+        console.log(`[MCP] 🔍 Fetching data for quote ${quoteId}...`);
         const { data, error } = await withTimeout<{
           data: { surface?: number; height?: number };
           error: any;
@@ -186,20 +189,49 @@ export function registerTools(server: Server) {
           }>,
           5000
         );
+
+        // Handle fetch errors
         if (error || !data) {
+          console.error(
+            `[MCP] ❌ ERROR: Failed to fetch quote ${quoteId}: ${error?.message}`
+          );
           return {
             isError: true,
             content: [
-              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+              {
+                type: "text",
+                text: `❌ Fetch failed: ${
+                  error?.message || "No data returned"
+                }`,
+              },
             ],
           };
         }
+
+        // Log retrieved data
+        console.log(`[MCP] ✅ Data retrieved for quote ${quoteId}:`, data);
+
+        // Step 2: Calculate surface estimates
         const S = data.surface ?? 75;
         const H = data.height ?? 2.6;
         const M2 = S * H;
         const P2 = S;
         const M1 = M2 * 0.2;
         const P1 = P2 * 0.2;
+
+        console.log(`[MCP] 📊 Calculated estimates for quote ${quoteId}:`, {
+          S,
+          H,
+          M1,
+          M2,
+          P1,
+          P2,
+        });
+
+        // Step 3: Update the quote
+        console.log(
+          `[MCP] 💾 Updating quote ${quoteId} with calculated estimates...`
+        );
         const { error: upd } = await withTimeout<{ error: any }>(
           supabase
             .from("quotes")
@@ -207,7 +239,12 @@ export function registerTools(server: Server) {
             .eq("id", quoteId) as unknown as Promise<{ error: any }>,
           5000
         );
+
+        // Handle update errors
         if (upd) {
+          console.error(
+            `[MCP] ❌ ERROR: Failed to update quote ${quoteId}: ${upd.message}`
+          );
           return {
             isError: true,
             content: [
@@ -215,18 +252,40 @@ export function registerTools(server: Server) {
             ],
           };
         }
+
+        // Log success
+        console.log(
+          `[MCP] ✅ COMPLETE: Surface estimates applied to quote ${quoteId}`
+        );
+
         return {
           content: [
             {
               type: "text",
-              text: `✅ Surface estimates applied to ${quoteId} (S=${S}, H=${H})`,
+              text: `✅ Surface estimates applied to ${quoteId}:\n• Surface: ${S}m²\n• Height: ${H}m\n• M1: ${M1.toFixed(
+                2
+              )}m²\n• M2: ${M2.toFixed(2)}m²\n• P1: ${P1.toFixed(
+                2
+              )}m²\n• P2: ${P2.toFixed(2)}m²`,
             },
           ],
         };
       } catch (err: any) {
+        // Comprehensive error logging
+        console.error(
+          `[MCP] 🚨 CRITICAL ERROR in applySurfaceEstimates for ${quoteId}:`,
+          err
+        );
+        console.error(err.stack);
+
         return {
           isError: true,
-          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
+          content: [
+            {
+              type: "text",
+              text: `❌ Error: ${err.message || "Unknown error occurred"}`,
+            },
+          ],
         };
       }
     }
