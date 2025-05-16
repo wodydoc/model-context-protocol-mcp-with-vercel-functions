@@ -1,4 +1,4 @@
-export const config = { runtime: "edge" };
+// export const config = { runtime: "edge" };
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/server.ts
 // Single Edge Function for MCP: serves both SSE (GET + text/event‑stream)
