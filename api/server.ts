@@ -15,11 +15,15 @@ import { registerTools } from "../lib/mcp-tools.js";
  */
 const handler = createMcpHandler(
   registerTools,
-  {},
+  {
+    // Server options - keep this empty or add valid options
+  },
   {
     verboseLogs: true,
-    maxDuration: 120, // 2 minutes max
+    maxDuration: 120, // 2 minutes max
     redisUrl: process.env.REDIS_URL,
+    // Add basePath to properly configure endpoints
+    basePath: "/api",
     // ⇢ No basePath needed here! the function lives at /api/server
   }
 );

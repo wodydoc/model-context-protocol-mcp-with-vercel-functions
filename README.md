@@ -78,7 +78,6 @@ You’ll need:
 
 * ✅ [Fluid compute enabled](https://vercel.com/docs/functions/fluid-compute)
 * ✅ `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set in Vercel Environment
-* ✅ Redis is *not used* in current setup
 
 Pull `.env` locally:
 
