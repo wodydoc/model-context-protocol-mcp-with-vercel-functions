@@ -1,15 +1,14 @@
-// export const config = { runtime: "edge" };
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/server.ts
-// Single Edge Function for MCP: serves both SSE (GET + text/event‑stream)
+// Single Function for MCP: serves both SSE (GET + text/event‑stream)
 // and JSON tool calls (POST + application/json)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createMcpHandler } from "@vercel/mcp-adapter";
 import { registerTools } from "../lib/mcp-tools.js";
 
-// Force Node.js runtime instead of Edge
-export const config = { runtime: "nodejs" };
+// Remove the runtime config as suggested by Vercel
+// export const config = { runtime: "nodejs" };
 
 /**
  * One handler to rule them all:
