@@ -15,6 +15,8 @@ The following tools are registered via `/api/server.ts` and callable via MCP:
 | `echo`           | Development echo test                                       |
 | `updateVAT`      | Updates the VAT (`vat`) field of a quote                    |
 | `splitPoseItems` | Splits `"fourniture_pose"` items into `fourniture` + `pose` |
+| `applySurfaceEstimates` | Computes M1/M2 and P1/P2 fields from `surface × height`      |
+
 
 All tools are typed with `zod` and safely integrated via Supabase.
 
@@ -34,18 +36,22 @@ All tools are typed with `zod` and safely integrated via Supabase.
 ```
 .
 ├── api
-│   └── server.ts                # MCP tool registration + handlers
+│   ├── health.ts                # Health check endpoint for Supabase connection
+│   └── server.ts                # MCP handler with Node.js runtime config
 ├── lib
-│   └── supabase.ts             # Supabase client connection
+│   ├── mcp-tools.ts             # Tool definitions with enhanced logging
+│   └── supabase.ts              # Supabase client with connection validation
 ├── public
-│   └── index.html              # Basic landing page
+│   └── index.html               # Basic landing page
 ├── scripts
-│   ├── test-client.mjs         # Client to invoke tools via SSE
+│   ├── call-apply-surface.mjs   # Script to test applySurfaceEstimates tool
+│   ├── test-client.mjs          # Client to invoke tools via HTTP
 │   └── test-streamable-http-client.mjs
-├── .env                        # Populated via `vercel env pull`
-├── vercel.json                 # Vercel config (duration, memory)
+├── .env                         # Populated via `vercel env pull`
+├── vercel.json                  # Vercel config (duration, memory)
 ├── README.md
 └── package.json
+
 ```
 
 ---
@@ -64,9 +70,19 @@ Run a local server with:
 vercel dev
 ```
 
-Trigger a tool using the test client:
+Test the health endpoint:
 
 ```sh
+curl http://localhost:3000/api/health
+```
+
+Trigger specific tools:
+
+```sh
+# Test the applySurfaceEstimates tool
+node scripts/call-apply-surface.mjs http://localhost:3000 YOUR_QUOTE_ID
+
+# Test other tools
 node scripts/test-client.mjs http://localhost:3000
 ```
 
@@ -78,6 +94,7 @@ You’ll need:
 
 * ✅ [Fluid compute enabled](https://vercel.com/docs/functions/fluid-compute)
 * ✅ `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set in Vercel Environment
+* ✅ Node.js runtime (not Edge) for MCP adapter compatibility
 
 Pull `.env` locally:
 
@@ -87,27 +104,42 @@ vercel env pull .env
 
 ---
 
+🔄 Runtime Configuration
+The MCP server now uses the Node.js runtime instead of Edge to avoid compatibility issues with the MCP adapter:
+
+```ts
+// Force Node.js runtime instead of Edge
+export const config = { runtime: "nodejs" };
+```
+
+SSE (Server-Sent Events) functionality is temporarily disabled to prevent the addEventListener error in serverless functions. Redis configuration can be re-enabled once SSE support is needed:
+
+```ts
+// Temporarily disabled for stability
+// redisUrl: process.env.REDIS_URL,
+```
+
 ## 🧽 Roadmap
 
 * [ ] `applySurfaceEstimates` tool (S × H rules)
 * [ ] `fillMissingInfo` tool (e.g. coats, brands, sizes)
 * [ ] Post-generation `quoteLinter` validator agent
+* [ ] Implement proper SSE support with Redis
 * [ ] Optional: migrate to standalone MCP server when >10 tools
 
 ---
 
 ## 📂 Related Links
 
+* 🗪 [Model Context Protocol (MCP) with Vercel Functions](https://vercel.com/templates/other/model-context-protocol-mcp-with-vercel-functions)
 * 🗪 [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
-* 🧠 [Renalto Assistant Vision](https://chat.openai.com/share/...insert-strategic-link-here)
+* ⚡️ [Renalto Assistant Beta](https://beta.renalto.com/accueil)
 
 ---
 
 ## 👨‍💼 Contributors
 
 * **@codydow** — Project lead, dev
-* **@nico** — Product/UX lead
-* **Grimoire** — AI toolsmith ✨
 
 ---
 
