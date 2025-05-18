@@ -16,6 +16,8 @@ The following tools are registered via `/api/server.ts` and callable via MCP:
 | `updateVAT`      | Updates the VAT (`vat`) field of a quote                    |
 | `splitPoseItems` | Splits `"fourniture_pose"` items into `fourniture` + `pose` |
 | `applySurfaceEstimates` | Computes M1/M2 and P1/P2 fields from `surface × height`      |
+| `fillMissingInfo`    | Fills missing `brand`, `coats`, `color`, `finish` with default values   |
+| `quoteLinter`        | Validates quote structure without making edits                          |
 
 
 All tools are typed with `zod` and safely integrated via Supabase.
@@ -37,6 +39,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 .
 ├── api
 │   ├── apply-surface.ts         # Direct API endpoint for surface estimates
+│   ├── fill-missing.ts         # Direct API endpoint to patch missing quote fields
+│   ├── quote-linter.ts         # Direct API endpoint to lint quote structure
 │   ├── health.ts                # Health check endpoint for Supabase connection
 │   └── server.ts                # MCP handler with Node.js runtime config
 ├── lib
@@ -47,6 +51,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 ├── scripts
 │   ├── call-apply-surface-direct.mjs  # Script to test direct API endpoint
 │   ├── call-apply-surface.mjs         # Script to test via MCP
+│   ├── call-fill-missing.mjs         # Script to test fillMissingInfo via direct API
+│   ├── call-quote-linter.mjs         # Script to test quoteLinter via direct API
 │   ├── test-client.mjs          # Client to invoke tools via HTTP
 │   └── test-streamable-http-client.mjs
 ├── .env                         # Populated via `vercel env pull`
@@ -145,8 +151,8 @@ SSE (Server-Sent Events) functionality is temporarily disabled to prevent the ad
 
 * ✅ `applySurfaceEstimates` tool (S × H rules)
 * ✅ Implement direct API fallback for MCP adapter issues
-* [ ] `fillMissingInfo` tool (e.g. coats, brands, sizes)
-* [ ] Post-generation `quoteLinter` validator agent
+* ✅ `fillMissingInfo` tool (e.g. coats, brands, sizes)
+* ✅ `quoteLinter` validator agent (non-destructive)
 * [ ] Implement proper SSE support with Redis
 * [ ] Optional: migrate to standalone MCP server when >10 tools
 
