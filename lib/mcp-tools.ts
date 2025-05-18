@@ -290,4 +290,105 @@ export function registerTools(server: Server) {
       }
     }
   );
+
+  // ─────────────────────────────────────────────────────────────────
+  // 5) fillMissingInfo: patch missing brand/coats/color/finish fields
+  // ─────────────────────────────────────────────────────────────────
+  server.tool(
+    "fillMissingInfo",
+    { quoteId: z.string() },
+    async (input: { quoteId: string }) => {
+      const { quoteId } = input;
+      console.log(`[MCP] fillMissingInfo → ${quoteId}`);
+      try {
+        const { data, error } = await withTimeout<{
+          data: {
+            brand?: string;
+            coats?: number;
+            color?: string;
+            finish?: string;
+          };
+          error: any;
+        }>(
+          supabase
+            .from("quotes")
+            .select("brand, coats, color, finish")
+            .eq("id", quoteId)
+            .single() as unknown as Promise<{
+            data: {
+              brand?: string;
+              coats?: number;
+              color?: string;
+              finish?: string;
+            };
+            error: any;
+          }>,
+          5000
+        );
+
+        if (error || !data) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+            ],
+          };
+        }
+
+        const patch: Record<string, any> = {};
+        if (!data.brand) patch.brand = "generic";
+        if (data.coats == null) patch.coats = 2;
+        if (!data.color) patch.color = "white";
+        if (!data.finish) patch.finish = "matte";
+
+        if (Object.keys(patch).length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `✅ Nothing to update — all fields already filled for ${quoteId}`,
+              },
+            ],
+          };
+        }
+
+        const { error: upd } = await withTimeout<{ error: any }>(
+          supabase
+            .from("quotes")
+            .update(patch)
+            .eq("id", quoteId) as unknown as Promise<{
+            error: any;
+          }>,
+          5000
+        );
+
+        if (upd) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Write failed: ${upd.message}` },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `✅ Missing info patched for ${quoteId}: ` +
+                Object.entries(patch)
+                  .map(([k, v]) => `• ${k}: ${v}`)
+                  .join("\n"),
+            },
+          ],
+        };
+      } catch (err: any) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
+        };
+      }
+    }
+  );
 }
