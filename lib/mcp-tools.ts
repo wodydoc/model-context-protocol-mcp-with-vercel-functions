@@ -391,4 +391,79 @@ export function registerTools(server: Server) {
       }
     }
   );
+
+  // ─────────────────────────────────────────────────────────────────
+  // 6) quoteLinter: non-destructive validator
+  // ─────────────────────────────────────────────────────────────────
+  server.tool("quoteLinter", { quoteId: z.string() }, async ({ quoteId }) => {
+    console.log(`[MCP] quoteLinter → ${quoteId}`);
+    try {
+      const { data, error } = await withTimeout<{
+        data: {
+          items?: QuoteItem[];
+          vat?: number;
+          brand?: string;
+          coats?: number;
+          surface?: number;
+          height?: number;
+        };
+        error: any;
+      }>(
+        supabase
+          .from("quotes")
+          .select("items, vat, brand, coats, surface, height")
+          .eq("id", quoteId)
+          .single() as unknown as Promise<{
+          data: {
+            items?: QuoteItem[];
+            vat?: number;
+            brand?: string;
+            coats?: number;
+            surface?: number;
+            height?: number;
+          };
+          error: any;
+        }>,
+        5000
+      );
+
+      if (error || !data) {
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+          ],
+        };
+      }
+
+      const issues: string[] = [];
+
+      if (!Array.isArray(data.items) || data.items.length === 0)
+        issues.push("🚫 Quote has no items");
+      if (data.vat == null || data.vat < 0 || data.vat > 1)
+        issues.push("⚠️ VAT is missing or out of bounds");
+      if (!data.brand) issues.push("⚠️ Brand is missing");
+      if (data.coats == null) issues.push("⚠️ Number of coats missing");
+      if (!data.surface || !data.height)
+        issues.push("⚠️ Surface or height not set");
+
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              issues.length === 0
+                ? `✅ Quote ${quoteId} passed linting`
+                : `🧹 Lint Results for ${quoteId}:\n` +
+                  issues.map((msg) => `• ${msg}`).join("\n"),
+          },
+        ],
+      };
+    } catch (err: any) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: `❌ Error: ${err.message}` }],
+      };
+    }
+  });
 }
