@@ -18,6 +18,7 @@ The following tools are registered via `/api/server.ts` and callable via MCP:
 | `applySurfaceEstimates` | Computes M1/M2 and P1/P2 fields from `surface × height`      |
 | `fillMissingInfo`    | Fills missing `brand`, `coats`, `color`, `finish` with default values   |
 | `quoteLinter`        | Validates quote structure without making edits                          |
+| `roundLineItemPrices` | Rounds all numeric `price` values in quote items to 2 decimals |
 
 
 All tools are typed with `zod` and safely integrated via Supabase.
@@ -41,6 +42,7 @@ All tools are typed with `zod` and safely integrated via Supabase.
 │   ├── apply-surface.ts         # Direct API endpoint for surface estimates
 │   ├── fill-missing.ts         # Direct API endpoint to patch missing quote fields
 │   ├── quote-linter.ts         # Direct API endpoint to lint quote structure
+│   ├── round-prices.ts         # Direct API endpoint to round item prices
 │   ├── health.ts                # Health check endpoint for Supabase connection
 │   └── server.ts                # MCP handler with Node.js runtime config
 ├── lib
@@ -53,6 +55,7 @@ All tools are typed with `zod` and safely integrated via Supabase.
 │   ├── call-apply-surface.mjs         # Script to test via MCP
 │   ├── call-fill-missing.mjs         # Script to test fillMissingInfo via direct API
 │   ├── call-quote-linter.mjs         # Script to test quoteLinter via direct API
+│   ├── call-round-prices.mjs         # Script to test roundLineItemPrices via direct API
 │   ├── test-client.mjs          # Client to invoke tools via HTTP
 │   └── test-streamable-http-client.mjs
 ├── .env                         # Populated via `vercel env pull`
@@ -153,6 +156,7 @@ SSE (Server-Sent Events) functionality is temporarily disabled to prevent the ad
 * ✅ Implement direct API fallback for MCP adapter issues
 * ✅ `fillMissingInfo` tool (e.g. coats, brands, sizes)
 * ✅ `quoteLinter` validator agent (non-destructive)
+* ✅ `roundLineItemPrices` tool to normalize `items[].price`
 * [ ] Implement proper SSE support with Redis
 * [ ] Optional: migrate to standalone MCP server when >10 tools
 
