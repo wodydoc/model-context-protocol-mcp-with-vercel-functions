@@ -466,4 +466,76 @@ export function registerTools(server: Server) {
       };
     }
   });
+
+  // ─────────────────────────────────────────────────────────────────
+  // 7) roundLineItemPrices: round item prices to nearest integer
+  // ─────────────────────────────────────────────────────────────────
+  server.tool(
+    "roundLineItemPrices",
+    { quoteId: z.string() },
+    async ({ quoteId }) => {
+      console.log(`[MCP] roundLineItemPrices → ${quoteId}`);
+      try {
+        const { data, error } = await withTimeout<{
+          data: { items: QuoteItem[] };
+          error: any;
+        }>(
+          supabase
+            .from("quotes")
+            .select("items")
+            .eq("id", quoteId)
+            .single() as unknown as Promise<{
+            data: { items: QuoteItem[] };
+            error: any;
+          }>,
+          5000
+        );
+
+        if (error || !data) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+            ],
+          };
+        }
+
+        const updatedItems = data.items.map((item) => ({
+          ...item,
+          price: Math.round(item.price ?? 0),
+        }));
+
+        const { error: upd } = await withTimeout<{ error: any }>(
+          supabase
+            .from("quotes")
+            .update({ items: updatedItems })
+            .eq("id", quoteId) as unknown as Promise<{ error: any }>,
+          5000
+        );
+
+        if (upd) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Write failed: ${upd.message}` },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Prices rounded for all items in quote ${quoteId}`,
+            },
+          ],
+        };
+      } catch (err: any) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
+        };
+      }
+    }
+  );
 }
