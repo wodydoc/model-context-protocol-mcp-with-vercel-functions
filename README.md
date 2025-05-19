@@ -19,6 +19,8 @@ The following tools are registered via `/api/server.ts` and callable via MCP:
 | `fillMissingInfo`    | Fills missing `brand`, `coats`, `color`, `finish` with default values   |
 | `quoteLinter`        | Validates quote structure without making edits                          |
 | `roundLineItemPrices` | Rounds all numeric `price` values in quote items to 2 decimals |
+| `inferMissingPrices` | Fills missing `price` fields based on heuristics (`type`) |
+| `groupLineItemsByRoom` | Adds headers to quote items by grouping them under their respective `room` |
 
 
 All tools are typed with `zod` and safely integrated via Supabase.
@@ -43,6 +45,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 │   ├── fill-missing.ts         # Direct API endpoint to patch missing quote fields
 │   ├── quote-linter.ts         # Direct API endpoint to lint quote structure
 │   ├── round-prices.ts         # Direct API endpoint to round item prices
+│   ├── group-by-room.ts             # Direct API endpoint to group items by room
+│   ├── infer-prices.ts             # Direct API endpoint to fill missing prices
 │   ├── health.ts                # Health check endpoint for Supabase connection
 │   └── server.ts                # MCP handler with Node.js runtime config
 ├── lib
@@ -56,6 +60,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 │   ├── call-fill-missing.mjs         # Script to test fillMissingInfo via direct API
 │   ├── call-quote-linter.mjs         # Script to test quoteLinter via direct API
 │   ├── call-round-prices.mjs         # Script to test roundLineItemPrices via direct API
+│   ├── call-group-by-room.mjs        # Script to test groupLineItemsByRoom via direct API
+│   ├── call-infer-prices.mjs         # Script to test inferMissingPrices via direct API
 │   ├── test-client.mjs          # Client to invoke tools via HTTP
 │   └── test-streamable-http-client.mjs
 ├── .env                         # Populated via `vercel env pull`
