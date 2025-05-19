@@ -41,6 +41,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 ```
 .
 ├── api
+│   ├── update-vat.ts         # Direct API endpoint to modify VAT % on a quote
+│   ├── split-pose.ts         # Direct API endpoint to split fourniture_pose items
 │   ├── apply-surface.ts         # Direct API endpoint for surface estimates
 │   ├── fill-missing.ts         # Direct API endpoint to patch missing quote fields
 │   ├── quote-linter.ts         # Direct API endpoint to lint quote structure
@@ -55,6 +57,8 @@ All tools are typed with `zod` and safely integrated via Supabase.
 ├── public
 │   └── index.html               # Basic landing page
 ├── scripts
+│   ├── call-update-vat.mjs         # Script to test VAT update via direct API
+│   ├── call-split-pose.mjs         # Script to test item split via direct API
 │   ├── call-apply-surface-direct.mjs  # Script to test direct API endpoint
 │   ├── call-apply-surface.mjs         # Script to test via MCP
 │   ├── call-fill-missing.mjs         # Script to test fillMissingInfo via direct API
