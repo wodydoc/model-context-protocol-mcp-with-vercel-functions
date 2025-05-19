@@ -633,4 +633,98 @@ export function registerTools(server: Server) {
       }
     }
   );
+
+  // ─────────────────────────────────────────────────────────────────
+  // 9) groupLineItemsByRoom: group quote items by room
+  // ─────────────────────────────────────────────────────────────────
+  server.tool(
+    "groupLineItemsByRoom",
+    { quoteId: z.string() },
+    async ({ quoteId }) => {
+      console.log(`[MCP] groupLineItemsByRoom → ${quoteId}`);
+      try {
+        // Step 1: Fetch the quote items
+        const { data, error } = await withTimeout<{
+          data: { items: QuoteItem[] };
+          error: any;
+        }>(
+          supabase
+            .from("quotes")
+            .select("items")
+            .eq("id", quoteId)
+            .single() as unknown as Promise<{
+            data: { items: QuoteItem[] };
+            error: any;
+          }>,
+          5000
+        );
+
+        if (error || !data) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+            ],
+          };
+        }
+
+        const items = data.items;
+
+        // Step 2: Group items by room
+        const groupedItems: { [room: string]: QuoteItem[] } = {};
+        for (const item of items) {
+          const room = item.room?.trim() || "Unassigned";
+          if (!groupedItems[room]) {
+            groupedItems[room] = [];
+          }
+          groupedItems[room].push(item);
+        }
+
+        // Step 3: Flatten grouped items with room headers
+        const updatedItems: QuoteItem[] = [];
+        for (const [room, roomItems] of Object.entries(groupedItems)) {
+          // Insert a header item for the room
+          updatedItems.push({
+            type: "header",
+            description: `Room: ${room}`,
+            price: 0,
+          });
+          // Append the room's items
+          updatedItems.push(...roomItems);
+        }
+
+        // Step 4: Update the quote with grouped items
+        const { error: upd } = await withTimeout<{ error: any }>(
+          supabase
+            .from("quotes")
+            .update({ items: updatedItems })
+            .eq("id", quoteId) as unknown as Promise<{ error: any }>,
+          5000
+        );
+
+        if (upd) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Write failed: ${upd.message}` },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Items grouped by room for quote ${quoteId}`,
+            },
+          ],
+        };
+      } catch (err: any) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
+        };
+      }
+    }
+  );
 }
