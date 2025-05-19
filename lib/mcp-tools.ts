@@ -538,4 +538,99 @@ export function registerTools(server: Server) {
       }
     }
   );
+
+  // ─────────────────────────────────────────────────────────────────
+  // 8) inferMissingPrices: fill item prices using heuristics
+  // ─────────────────────────────────────────────────────────────────
+  server.tool(
+    "inferMissingPrices",
+    { quoteId: z.string() },
+    async ({ quoteId }) => {
+      console.log(`[MCP] inferMissingPrices → ${quoteId}`);
+      try {
+        const { data, error } = await withTimeout<{
+          data: { items: QuoteItem[] };
+          error: any;
+        }>(
+          supabase
+            .from("quotes")
+            .select("items")
+            .eq("id", quoteId)
+            .single() as unknown as Promise<{
+            data: { items: QuoteItem[] };
+            error: any;
+          }>,
+          5000
+        );
+
+        if (error || !data) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Fetch failed: ${error?.message}` },
+            ],
+          };
+        }
+
+        const heuristics: Record<string, number> = {
+          peinture: 25,
+          pose: 40,
+          fourniture: 60,
+          demontage: 15,
+        };
+
+        let updated = 0;
+        const updatedItems = data.items.map((item) => {
+          if ((item.price == null || item.price === 0) && item.type) {
+            const unitPrice = heuristics[item.type.toLowerCase()] ?? 30;
+            updated++;
+            return { ...item, price: unitPrice };
+          }
+          return item;
+        });
+
+        if (updated === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `✅ All item prices already filled for ${quoteId}`,
+              },
+            ],
+          };
+        }
+
+        const { error: upd } = await withTimeout<{ error: any }>(
+          supabase
+            .from("quotes")
+            .update({ items: updatedItems })
+            .eq("id", quoteId) as unknown as Promise<{ error: any }>,
+          5000
+        );
+
+        if (upd) {
+          return {
+            isError: true,
+            content: [
+              { type: "text", text: `❌ Write failed: ${upd.message}` },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ ${updated} missing prices filled for quote ${quoteId}`,
+            },
+          ],
+        };
+      } catch (err: any) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `❌ Error: ${err.message}` }],
+        };
+      }
+    }
+  );
 }
